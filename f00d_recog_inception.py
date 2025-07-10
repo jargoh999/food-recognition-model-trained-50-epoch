@@ -70,6 +70,71 @@ def plot_pred_final(test_imgs):
 model_saved = tensorflow.keras.models.load_model("inception_food_rec_50epochs.h5")
 target_dict = {0:"Bread",1:"Dairy_product",2:"Dessert",3:"Egg",4:"Fried_food",
                  5:"Meat",6:"Noodles/Pasta",7:"Rice",8:"Seafood",9:"Soup",10:"veggies/Fruit"}
+
+@app.route('/')
+def home():
+    return render_template_string('''
+        <!doctype html>
+        <html>
+        <head>
+            <title>Food Recognition App</title>
+            <style>
+                body { font-family: Arial, sans-serif; }
+                .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+                .upload-area { border: 2px dashed #ccc; padding: 20px; text-align: center; }
+                .result { margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Food Recognition App</h1>
+                <div class="upload-area">
+                    <form action="/predict" method="post" enctype="multipart/form-data">
+                        <input type="file" name="file" accept="image/*" required>
+                        <button type="submit">Upload Image</button>
+                    </form>
+                </div>
+                <div class="result" id="result"></div>
+            </div>
+        </body>
+        </html>
+    ''')
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    if 'file' not in request.files:
+        return "No file part"
+    
+    file = request.files['file']
+    if file.filename == '':
+        return "No selected file"
+    
+    try:
+        # Process the image
+        img = Image.open(file)
+        img = img.resize((256, 256))
+        x = image.img_to_array(img)
+        x = np.expand_dims(x, axis=0)
+        x = preprocess_input(x)
+        
+        # Make prediction
+        predictions = model_saved.predict(x)
+        result = {}
+        for i, prob in enumerate(predictions[0]):
+            result[i] = float(prob) * 100
+        
+        # Convert to HTML
+        result_html = '<div class="result">'
+        result_html += '<h3>Prediction Results:</h3>'
+        sorted_results = sorted(result.items(), key=lambda x: x[1], reverse=True)
+        for food_type, prob in sorted_results:
+            result_html += f'<p>{target_dict[food_type]}: {prob:.2f}%</p>'
+        result_html += '</div>'
+        
+        return result_html
+    except Exception as e:
+        return f'<div class="result"><p>Error processing image: {str(e)}</p></div>'
+
 ss.set_page_config(
     page_title="Food Recognition App",
     page_icon="🍽️",
