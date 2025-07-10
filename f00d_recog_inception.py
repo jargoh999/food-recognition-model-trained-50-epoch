@@ -1,7 +1,6 @@
-
 import streamlit as ss
-import os
-os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
+
 import numpy as np #standard
 import plotly.express as px  #plots and graphing lib
 from plotly.subplots import make_subplots
@@ -71,65 +70,166 @@ def plot_pred_final(test_imgs):
 model_saved = tensorflow.keras.models.load_model("inception_food_rec_50epochs.h5")
 target_dict = {0:"Bread",1:"Dairy_product",2:"Dessert",3:"Egg",4:"Fried_food",
                  5:"Meat",6:"Noodles/Pasta",7:"Rice",8:"Seafood",9:"Soup",10:"veggies/Fruit"}
-ss.set_page_config(page_title = "Food Recognition using Inception V3", layout = "wide")
-ss.title("Food Recognition using inception-V3")
 
-ss.markdown(
-'''
-Every one likes food! This deployment recognizes 11 different classes of food using a SOTA Inception V3 Transfer Learning.\n
-''')
+@app.route('/')
+def home():
+    return render_template_string('''
+        <!doctype html>
+        <html>
+        <head>
+            <title>Food Recognition App</title>
+            <style>
+                body { font-family: Arial, sans-serif; }
+                .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+                .upload-area { border: 2px dashed #ccc; padding: 20px; text-align: center; }
+                .result { margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Food Recognition App</h1>
+                <div class="upload-area">
+                    <form action="/predict" method="post" enctype="multipart/form-data">
+                        <input type="file" name="file" accept="image/*" required>
+                        <button type="submit">Upload Image</button>
+                    </form>
+                </div>
+                <div class="result" id="result"></div>
+            </div>
+        </body>
+        </html>
+    ''')
 
-ss.image("f1.jpg")
-ss.markdown(
-'''
-### Inception V3
-- The paper for Inception can be found [here](https://arxiv.org/abs/1512.00567v3)\n
+@app.route('/predict', methods=['POST'])
+def predict():
+    if 'file' not in request.files:
+        return "No file part"
+    
+    file = request.files['file']
+    if file.filename == '':
+        return "No selected file"
+    
+    try:
+        # Process the image
+        img = Image.open(file)
+        img = img.resize((256, 256))
+        x = image.img_to_array(img)
+        x = np.expand_dims(x, axis=0)
+        x = preprocess_input(x)
+        
+        # Make prediction
+        predictions = model_saved.predict(x)
+        result = {}
+        for i, prob in enumerate(predictions[0]):
+            result[i] = float(prob) * 100
+        
+        # Convert to HTML
+        result_html = '<div class="result">'
+        result_html += '<h3>Prediction Results:</h3>'
+        sorted_results = sorted(result.items(), key=lambda x: x[1], reverse=True)
+        for food_type, prob in sorted_results:
+            result_html += f'<p>{target_dict[food_type]}: {prob:.2f}%</p>'
+        result_html += '</div>'
+        
+        return result_html
+    except Exception as e:
+        return f'<div class="result"><p>Error processing image: {str(e)}</p></div>'
 
-- The paper implementation using pytorch can be found [here](https://github.com/pytorch/vision/blob/6db1569c89094cf23f3bc41f79275c45e9fcb3f3/torchvision/models/inception.py#L64)
-
-- Inception-v3 is a convolutional neural network architecture from the Inception family that makes several improvements including using 
-  - Label Smoothing,
-  - Factorized 7 x 7 convolutions,\n 
-  and the use of an auxiliary classifer to propagate label information lower down the network (along with the use of batch normalization for layers in the sidehead).
-- Training on 16,600 images yielded 90% accuracy on train and 76% accuracy on validation. over 50 epochs!
-- This model is saved and used later
-'''
+ss.set_page_config(
+    page_title="Food Recognition App",
+    page_icon="🍽️",
+    layout="wide"
 )
-ss.markdown(
-'''
-### Model Architecture
-''')
-ss.image("inception_2.png")
 
-ss.markdown('### Dataset Details and Classes')
-ss.markdown('Data consists of 1.1GB of 16,600 images of different categories of food.')
-ss.markdown('the categories of food that can be classified are ')
-ss.markdown(
-  '''
+ss.title("Food Recognition App")
+ss.markdown("""
+## Welcome to the Food Recognition System
+
+Upload an image of your food, and our AI will identify what type of food it is!
+
+This app uses a state-of-the-art InceptionV3 model trained on 16,600 food images.
+""")
+
+# Create two columns for better layout
+left_column, right_column = ss.beta_columns([1, 2])
+
+with left_column:
+    ss.markdown("""
+    ### How it works:
+    1. Upload an image of your food
+    2. Get instant recognition results
+    3. View the confidence scores
+    
+    ### Supported Food Categories:
     - Bread
-    - Dairy Product
-    - Dessert
-    - Egg
-    - Fried Food
+    - Dairy Products
+    - Desserts
+    - Eggs
+    - Fried Foods
     - Meat
-    - Noodles-pasta
+    - Noodles/Pasta
     - Rice
     - Seafood
-    - Soup
-    - Vegetable-fruit
-  '''
-)
-ss.markdown('Dataset is obtained from [kaggle](https://www.kaggle.com/trolukovich/food11-image-dataset)')
+    - Soups
+    - Vegetables/Fruits
+    
+    ### Technical Details:
+    - Model: InceptionV3
+    - Training Data: 16,600 food images
+    - Training Epochs: 50
+    - Training Accuracy: 90%
+    - Validation Accuracy: 76%
+    
+    Dataset source: [Kaggle Food11](https://www.kaggle.com/trolukovich/food11-image-dataset)
+    """)
 
+with right_column:
+    # Create file uploader
+    uploaded_file = ss.file_uploader("Upload an image of your food", type=['jpg', 'jpeg', 'png'])
+    
+    if uploaded_file is not None:
+        # Display the uploaded image
+        image = Image.open(uploaded_file)
+        ss.image(image, caption='Uploaded Image', use_column_width=True)
+        
+        # Process and predict
+        if ss.button('Predict Food Type', key='predict_button'):
+            predictions = inception_no_gen(image)
+            
+            # Display predictions using Streamlit's default styling
+            ss.markdown("### Prediction Results")
+            for category, probability in predictions.items():
+                ss.markdown(f"- {category}: {probability:.2%}")
 
-ss.markdown('### Food Recognition step - Upload Image')
-image_path = ss.file_uploader("drop the image file here: ", type = ["jpg"])
+ss.markdown("""
+---
+## About the Model
 
-if image_path:
-  image = Image.open(image_path)
-  preds = plot_pred_final(image)
-  ss.plotly_chart(preds)
+This app uses InceptionV3, a powerful deep learning model that:
+- Achieves 90% accuracy on training data
+- Has 76% accuracy on validation data
+- Was trained for 50 epochs
+- Uses advanced techniques like label smoothing and batch normalization
+
+The model was trained on a diverse dataset of 16,600 food images.
+""")
+
+if uploaded_file:
+    image = Image.open(uploaded_file)
+    predictions = inception_no_gen(image)
+    
+    # Create a more visually appealing prediction display
+    ss.markdown("""
+    <div class="prediction-box">
+        <div class="prediction-title">Prediction Results</div>
+    """, unsafe_allow_html=True)
+    
+    for category, probability in predictions.items():
+        ss.markdown(f'<div class="prediction-item">{category}: <span class="confidence-score">{probability:.2%}</span></div>', unsafe_allow_html=True)
+    
+    ss.markdown("</div>", unsafe_allow_html=True)
   
+
 
 
 
