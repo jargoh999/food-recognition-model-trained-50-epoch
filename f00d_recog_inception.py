@@ -1,6 +1,7 @@
+
 import streamlit as ss
-
-
+import os
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 import numpy as np #standard
 import plotly.express as px  #plots and graphing lib
 from plotly.subplots import make_subplots
