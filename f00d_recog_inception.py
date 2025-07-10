@@ -86,7 +86,7 @@ This app uses a state-of-the-art InceptionV3 model trained on 16,600 food images
 """)
 
 # Create two columns for better layout
-left_column, right_column = ss.beta_columns([1, 2])
+left_column, right_column = ss.columns([1, 2])
 
 with left_column:
     ss.markdown("""
