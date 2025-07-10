@@ -70,71 +70,6 @@ def plot_pred_final(test_imgs):
 model_saved = tensorflow.keras.models.load_model("inception_food_rec_50epochs.h5")
 target_dict = {0:"Bread",1:"Dairy_product",2:"Dessert",3:"Egg",4:"Fried_food",
                  5:"Meat",6:"Noodles/Pasta",7:"Rice",8:"Seafood",9:"Soup",10:"veggies/Fruit"}
-
-@app.route('/')
-def home():
-    return render_template_string('''
-        <!doctype html>
-        <html>
-        <head>
-            <title>Food Recognition App</title>
-            <style>
-                body { font-family: Arial, sans-serif; }
-                .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-                .upload-area { border: 2px dashed #ccc; padding: 20px; text-align: center; }
-                .result { margin-top: 20px; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>Food Recognition App</h1>
-                <div class="upload-area">
-                    <form action="/predict" method="post" enctype="multipart/form-data">
-                        <input type="file" name="file" accept="image/*" required>
-                        <button type="submit">Upload Image</button>
-                    </form>
-                </div>
-                <div class="result" id="result"></div>
-            </div>
-        </body>
-        </html>
-    ''')
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    if 'file' not in request.files:
-        return "No file part"
-    
-    file = request.files['file']
-    if file.filename == '':
-        return "No selected file"
-    
-    try:
-        # Process the image
-        img = Image.open(file)
-        img = img.resize((256, 256))
-        x = image.img_to_array(img)
-        x = np.expand_dims(x, axis=0)
-        x = preprocess_input(x)
-        
-        # Make prediction
-        predictions = model_saved.predict(x)
-        result = {}
-        for i, prob in enumerate(predictions[0]):
-            result[i] = float(prob) * 100
-        
-        # Convert to HTML
-        result_html = '<div class="result">'
-        result_html += '<h3>Prediction Results:</h3>'
-        sorted_results = sorted(result.items(), key=lambda x: x[1], reverse=True)
-        for food_type, prob in sorted_results:
-            result_html += f'<p>{target_dict[food_type]}: {prob:.2f}%</p>'
-        result_html += '</div>'
-        
-        return result_html
-    except Exception as e:
-        return f'<div class="result"><p>Error processing image: {str(e)}</p></div>'
-
 ss.set_page_config(
     page_title="Food Recognition App",
     page_icon="🍽️",
@@ -180,7 +115,14 @@ with left_column:
     - Training Accuracy: 90%
     - Validation Accuracy: 76%
     
-    Dataset source: [Kaggle Food11](https://www.kaggle.com/trolukovich/food11-image-dataset)
+    Dataset sources:
+1. [Kaggle Food11](https://www.kaggle.com/trolukovich/food11-image-dataset) - 16,600 food images across 11 categories
+2. [Food-101](https://data.vision.ee.ethz.ch/cvl/datasets_extra/food-101/) - 101 food categories with 101,000 images
+3. [Food-5K](https://food-5k.github.io/) - 5,000 food images with fine-grained annotations
+4. [FoodX-251](https://github.com/AlpacaDB/FoodX-251) - 251 food categories with 1.3M images
+5. [Food-251](https://data.vision.ee.ethz.ch/cvl/datasets_extra/food-251/) - 251 food categories with 251,000 images
+
+Note: The current model is trained on Food11 dataset, but can be extended with additional datasets for improved accuracy.
     """)
 
 with right_column:
